@@ -8,9 +8,9 @@ inputs:
   dockerfile-path:
     description: dockerfile-absolute-path
     required: true
-  new-stg-tag:
+  new-prd-tag:
     description: The tag name
-  latest-stg-tag:
+  latest-prd-tag:
     description: The tag name
   env:
     description: environment (stg, prd)
@@ -28,8 +28,8 @@ inputs:
 outputs:
   github-sha-image-exists:
     description: 'Indicates if an image with the same GitHub SHA exists in ECR'
-  valid-new-stg-tag:
-    description: 'valid new stg tag'
+  valid-new-prd-tag:
+    description: 'valid new prd tag'
 
 runs:
   using: 'composite'
