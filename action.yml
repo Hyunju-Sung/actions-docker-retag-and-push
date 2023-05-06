@@ -13,6 +13,10 @@ inputs:
     description: environment (stg, prd)
     required: true
 
+outputs:
+  valid-new-prd-tag:
+    description: 'valid new prd tag'
+
 runs:
   using: 'composite'
   steps:
@@ -54,7 +58,7 @@ runs:
         ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
         ECR_REPOSITORY: ${{ env.ecr-root }}/${{ inputs.env }}/${{ inputs.service }}
         CACHE_FILE: /tmp/docker-image-cache.tar.gz
-        NEW_IMAGE_TAG: ${{ steps.valid-image-check.outputs.valid-new-prd-tag }}
+        NEW_IMAGE_TAG: ${{ inputs.new-prd-tag }}
       run: |
         if [ -f "$CACHE_FILE" ]; then
           echo "Loading image from cache..."
