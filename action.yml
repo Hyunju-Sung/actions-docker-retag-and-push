@@ -1,0 +1,92 @@
+name: 'Build Docker Image'
+description: 'Build Docker Image'
+
+inputs:
+  service:
+    description: for ECR Repository Name
+    required: true
+  dockerfile-path:
+    description: dockerfile-absolute-path
+    required: true
+  new-stg-tag:
+    description: The tag name
+  latest-stg-tag:
+    description: The tag name
+  env:
+    description: environment (stg, prd)
+    required: true
+  custom-docker-build-command:
+    description: docker-build-command
+    default: ''
+  custom-docker-image-name:
+    description: docker-image-name
+    default: ''
+  custom-docker-tag:
+    description: custom-docker-tag
+    default: latest
+
+outputs:
+  github-sha-image-exists:
+    description: 'Indicates if an image with the same GitHub SHA exists in ECR'
+  valid-new-stg-tag:
+    description: 'valid new stg tag'
+
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Login to Amazon ECR Private
+      id: login-ecr
+      uses: Hyunju-Sung/actions-ecr-login-hj@0.0.4
+
+    - name: Valid Image Check
+      id: valid-image-check
+      env:
+        ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+        ECR_REPOSITORY: ${{ env.ecr-root }}/${{ inputs.env }}/${{ inputs.service }}
+        IMAGE_TAG: ${{ inputs.new-prd-tag }}
+        CACHE_FILE: /tmp/docker-image-cache.tar.gz
+      run: |
+        IMAGE_EXISTS=$(aws ecr list-images --repository-name $ECR_REPOSITORY --filter tagStatus=TAGGED --query 'imageIds[?imageTag==`'"$GITHUB_SHA"'`]' --output text)
+        if [ -z "$IMAGE_EXISTS" ]; then
+          echo "::set-output name=github-sha-image-exists::false"
+        else
+          echo "Image found with tag: $GITHUB_SHA | valid-new-prd-tag: ${{ inputs.latest-prd-tag }}"
+          echo "::set-output name=github-sha-image-exists::true"
+          echo "::set-output name=valid-new-prd-tag::${{ inputs.latest-prd-tag }}"
+        fi
+      shell: bash
+
+    - name: Restore Docker image cache
+      if: ${{ steps.valid-image-check.outputs.github-sha-image-exists == 'false'}}
+      uses: actions/cache@v2
+      with:
+        path: /tmp/docker-image-cache.tar.gz
+        key: ${{ runner.os }}-docker-cache-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-docker-cache-
+
+    - name: Load cached Docker image
+      if: ${{ steps.valid-image-check.outputs.github-sha-image-exists == 'false'}}
+      env:
+        ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+        ECR_REPOSITORY: ${{ env.ecr-root }}/${{ inputs.env }}/${{ inputs.service }}
+        CACHE_FILE: /tmp/docker-image-cache.tar.gz
+        NEW_IMAGE_TAG: ${{ inputs.tag }}
+      run: |
+        if [ -f "$CACHE_FILE" ]; then
+          echo "Loading image from cache..."
+          LOADING_RESULT=$(gunzip -c $CACHE_FILE | docker load)
+          echo "$LOADING_RESULT"
+          LOADED_IMAGE=$(echo "$LOADING_RESULT" | grep -oP '(?<=Loaded image: ).*')
+          echo "Loaded Image: $LOADED_IMAGE"
+          if [ -n "$LOADED_IMAGE" ]; then
+            docker tag $LOADED_IMAGE $ECR_REGISTRY/$ECR_REPOSITORY:$NEW_IMAGE_TAG
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY:$NEW_IMAGE_TAG
+          else
+            echo "Failed to retrieve loaded image."
+          fi
+        else
+          echo "Cache file not found."
+        fi
+      shell: bash
