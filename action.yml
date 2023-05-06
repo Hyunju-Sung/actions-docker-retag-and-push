@@ -5,9 +5,6 @@ inputs:
   service:
     description: for ECR Repository Name
     required: true
-  dockerfile-path:
-    description: dockerfile-absolute-path
-    required: true
   new-prd-tag:
     description: The tag name
   latest-prd-tag:
@@ -15,19 +12,8 @@ inputs:
   env:
     description: environment (stg, prd)
     required: true
-  custom-docker-build-command:
-    description: docker-build-command
-    default: ''
-  custom-docker-image-name:
-    description: docker-image-name
-    default: ''
-  custom-docker-tag:
-    description: custom-docker-tag
-    default: latest
 
 outputs:
-  github-sha-image-exists:
-    description: 'Indicates if an image with the same GitHub SHA exists in ECR'
   valid-new-prd-tag:
     description: 'valid new prd tag'
 
